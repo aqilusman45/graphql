@@ -38,16 +38,27 @@ const books = [
 ];
 
 const AuthorType = new GraphQLObjectType({
-    name: "Author",
-    description: "This represents an author of the book",
-    fields: () => ({
-      id: { type: GraphQLNonNull(GraphQLInt) },
-      name: { type: GraphQLNonNull(GraphQLString) },
-    })
-  });
-  
-
-
+  name: "Author",
+  description: "This represents an author of the book",
+  fields: () => ({
+    id: { type: GraphQLNonNull(GraphQLInt) },
+    name: { type: GraphQLNonNull(GraphQLString) },
+    books: {
+      type: GraphQLList(BookType),
+      resolve: author => {
+        // const bookList = [];
+        // books.map((book, index) => {
+        //   if (book.authorId === author.id) {
+        //     bookList.push(book);
+        //   }
+        // });
+        // return bookList; // verbose approach
+        // BETTER APPROACH
+        return books.filter(books => books.authorId === author.id);
+      }
+    }
+  })
+});
 
 const BookType = new GraphQLObjectType({
   name: "Book",
@@ -56,11 +67,11 @@ const BookType = new GraphQLObjectType({
     id: { type: GraphQLNonNull(GraphQLInt) },
     name: { type: GraphQLNonNull(GraphQLString) },
     authorId: { type: GraphQLNonNull(GraphQLString) },
-    author : {
-        type: AuthorType,
-        resolve: (book)=> {
-            return authors.find(author => author.id === book.authorId)
-        }
+    author: {
+      type: AuthorType,
+      resolve: book => {
+        return authors.find(author => author.id === book.authorId);
+      }
     }
   })
 });
@@ -70,16 +81,90 @@ const RootQueryType = new GraphQLObjectType({
   description: "Root Query",
   fields: () => ({
     books: {
+      // get all books
       type: new GraphQLList(BookType), // custom type for the feilds
       description: "List of Books",
       resolve: () => books
+    },
+    authors: {
+      // get all authors
+      type: new GraphQLList(AuthorType),
+      description: "List of Authors",
+      resolve: () => authors
+    },
+    book: {
+      type: BookType, // custom type for the feilds
+      description: "Get single book",
+      args: {
+        id: { type: GraphQLInt }
+      },
+      resolve: (parent, args) => books.find(book => book.id === args.id)
+    },
+    author: {
+      type: AuthorType,
+      description: "Get Single Author",
+      args: {
+        id: { type: GraphQLInt }
+      },
+      resolve: (parent, args) => authors.find(author => author.id === args.id)
     }
   })
 });
 
+// GraphQLNonNull IS FOR DATA THAT CANT BE NULL
+// GraphQLObjectType IS QUERY OBJECT
+
+// MUTATION, SAME AS POST, PUT, DELETE FOR GRAPGHQL
+// Define a new object which is a mutation query
+
+const RootMutationType = new GraphQLObjectType({
+  name: "Mutation",
+  description: "Mutation Query",
+  fields: () => ({
+    addBook: {
+      // name of the function to add book
+      type: BookType, // type of properties
+      description: "Add a book",
+      args: {
+        // arguments contain data from which the book will be created
+        name: { type: GraphQLNonNull(GraphQLString) },
+        authorId: { type: GraphQLNonNull(GraphQLInt) }
+      },
+      resolve: (parent, args) => {
+        const book = {
+          id: books.length + 1,
+          name: args.name,
+          author: args.author
+        };
+        books.push(book);
+        return book;
+      }
+    },
+    addAuthor: {
+      // name of the function to add author
+      type: AuthorType, // type of properties
+      description: "Add an Author",
+      args: {
+        // arguments contain data from which the author will be created
+        name: { type: GraphQLNonNull(GraphQLString) },
+      },
+      resolve: (parent, args) => {
+        const author = {
+          id: authors.length + 1,
+          name: args.name,
+        };
+        authors.push(author);
+        return author;
+      }
+    }
+  }),
+
+});
+
 const schema = new GraphQLSchema({
-    query: RootQueryType
-})
+  query: RootQueryType,
+  mutation: RootMutationType
+});
 
 // Sample first query
 // const schema = new GraphQLSchema({
@@ -98,4 +183,3 @@ exports.startGraphQL = expressGraphQL({
   schema: schema,
   graphiql: true
 });
- 
